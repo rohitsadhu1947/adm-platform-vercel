@@ -325,8 +325,9 @@ async def add_entry_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     telegram_id = update.effective_user.id
     payload = {
         "adm_telegram_id": telegram_id,
-        "title": f"{title}" + (f" ({time_display})" if time_str else ""),
+        "title": title,
         "date": entry_date_str,
+        "time": time_str if time_str else None,  # HH:MM format for scheduled_time
         "priority": "today" if entry_date == date.today() else "upcoming",
     }
 

@@ -25,6 +25,7 @@ from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
+    ConversationHandler,
     MessageHandler,
     ContextTypes,
     filters as tg_filters,
@@ -89,12 +90,40 @@ async def _post_init(application: Application) -> None:
 
 
 async def _unhandled_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle stray text that no ConversationHandler claimed."""
+    """Handle stray text that no ConversationHandler claimed.
+
+    IMPORTANT: In python-telegram-bot, handlers in different groups ALL get
+    a chance to process the update. So this group-99 handler fires even when
+    a ConversationHandler in group 0 already processed the text. We must
+    check whether a conversation is active and skip if so.
+    """
     if not update.message or not update.message.text:
         return
+
+    # Skip if ANY conversation handler is currently active for this user.
+    # ConversationHandlers store their state in context.user_data or the
+    # persistence layer under handler name keys. We check a simpler signal:
+    # if the user has any conversation-related keys in user_data, a flow
+    # is probably active.
+    # A more reliable check: see if _application has any active conversations
+    # for this user.
+    user_id = update.effective_user.id if update.effective_user else None
+    chat_id = update.effective_chat.id if update.effective_chat else None
+
+    if user_id and chat_id and _application:
+        # Check all ConversationHandler states for an active conversation
+        for group_handlers in _application.handlers.values():
+            for handler in group_handlers:
+                if isinstance(handler, ConversationHandler):
+                    key = (chat_id, user_id)
+                    # ConversationHandler._conversations is a dict of active convos
+                    if hasattr(handler, '_conversations') and key in handler._conversations:
+                        # User is in an active conversation — don't fire catch-all
+                        return
+
     logger.warning(
         "CATCH-ALL: Unhandled text from user %s: %s",
-        update.effective_user.id if update.effective_user else "unknown",
+        user_id or "unknown",
         update.message.text[:100],
     )
     await update.message.reply_text(

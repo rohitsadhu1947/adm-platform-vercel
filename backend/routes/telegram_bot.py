@@ -696,6 +696,7 @@ def add_diary_entry_telegram(data: dict, db: Session = Depends(get_db)):
     telegram_id = data.get("adm_telegram_id")
     title = data.get("title", "")
     date_str = data.get("date")
+    time_str = data.get("time")  # HH:MM format (e.g., "09:00", "15:00")
     priority = data.get("priority", "today")
 
     adm = _get_adm_by_telegram_id(db, telegram_id)
@@ -712,6 +713,7 @@ def add_diary_entry_telegram(data: dict, db: Session = Depends(get_db)):
     entry = DiaryEntry(
         adm_id=adm.id,
         scheduled_date=sched_date,
+        scheduled_time=time_str,  # Now properly saved (HH:MM or None)
         entry_type="follow_up",
         notes=title,
         status="scheduled",
@@ -724,6 +726,7 @@ def add_diary_entry_telegram(data: dict, db: Session = Depends(get_db)):
         "id": entry.id,
         "title": title,
         "date": sched_date.isoformat(),
+        "time": time_str,
         "status": "scheduled",
     }
 
