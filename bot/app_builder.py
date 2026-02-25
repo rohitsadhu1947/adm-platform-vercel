@@ -30,7 +30,7 @@ from telegram.ext import (
     filters as tg_filters,
 )
 
-from config import config
+from bot_config import config
 from persistence import PostgresPersistence
 
 # Handler imports

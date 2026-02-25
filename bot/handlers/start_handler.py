@@ -22,7 +22,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import RegistrationStates
+from bot_config import RegistrationStates
 from utils.api_client import api_client
 from utils.formatters import (
     welcome_message,

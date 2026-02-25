@@ -20,7 +20,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import InteractionStates
+from bot_config import InteractionStates
 from utils.api_client import api_client
 from utils.formatters import (
     format_interaction_summary,

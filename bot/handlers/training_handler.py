@@ -12,7 +12,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from config import TrainingStates
+from bot_config import TrainingStates
 from utils.api_client import api_client
 from utils.formatters import (
     format_product_summary,

@@ -37,7 +37,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from config import config
+from bot_config import config
 from utils.api_client import api_client
 from utils.formatters import (
     error_generic,

@@ -19,7 +19,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import AskStates
+from bot_config import AskStates
 from utils.api_client import api_client
 from utils.formatters import (
     format_product_answer,

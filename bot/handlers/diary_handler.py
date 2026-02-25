@@ -16,7 +16,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import DiaryStates
+from bot_config import DiaryStates
 from utils.api_client import api_client
 from utils.formatters import (
     format_diary,

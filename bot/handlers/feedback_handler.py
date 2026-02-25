@@ -17,7 +17,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import FeedbackStates
+from bot_config import FeedbackStates
 from utils.api_client import api_client
 from utils.formatters import (
     error_generic,

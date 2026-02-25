@@ -20,7 +20,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import CaseStates
+from bot_config import CaseStates
 from utils.api_client import api_client
 from utils.keyboards import agent_list_keyboard
 from utils.voice import send_voice_response

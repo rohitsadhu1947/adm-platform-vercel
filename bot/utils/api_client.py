@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 import httpx
 
-from config import config
+from bot_config import config
 
 logger = logging.getLogger(__name__)
 
