@@ -112,6 +112,8 @@ class DiaryStates:
     ADD_ENTRY = 31
     ENTRY_DETAILS = 32
     RESCHEDULE = 33
+    ADD_ENTRY_DATE = 34
+    ADD_ENTRY_TIME = 35
 
 
 # Registration states

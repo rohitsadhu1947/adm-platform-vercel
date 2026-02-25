@@ -141,23 +141,27 @@ async def tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     for t in tickets[:10]:
-        status_emoji = {"routed": "📤", "responded": "💬", "script_generated": "📝", "script_sent": "✅"}.get(t.get("status", ""), "📋")
-        text = (
-            f"{status_emoji} *{t['ticket_id']}*\n"
-            f"Agent: {t.get('agent_name', '—')}\n"
-            f"Dept: {t.get('bucket_display', t.get('bucket', '—'))}\n"
-            f"Status: {t.get('status', '—')}\n"
-            f"Reason: {t.get('reason_code', '—')}"
-        )
-        buttons = []
-        if t.get("status") in ("script_sent", "script_generated", "responded"):
-            buttons.append([InlineKeyboardButton("✅ Close Ticket", callback_data=f"close_ticket:{t['ticket_id']}")])
+        try:
+            status_emoji = {"routed": "📤", "responded": "💬", "script_generated": "📝", "script_sent": "✅", "received": "📋", "closed": "☑️"}.get(t.get("status", ""), "📋")
+            ticket_id = t.get("ticket_id", "—")
+            text = (
+                f"{status_emoji} <b>{ticket_id}</b>\n"
+                f"Agent: {t.get('agent_name', '—')}\n"
+                f"Dept: {t.get('bucket_display', t.get('bucket', '—'))}\n"
+                f"Status: {t.get('status', '—')}\n"
+                f"Reason: {t.get('reason_code', '—')}"
+            )
+            buttons = []
+            if t.get("status") in ("script_sent", "script_generated", "responded", "received"):
+                buttons.append([InlineKeyboardButton("✅ Close Ticket", callback_data=f"close_ticket:{ticket_id}")])
 
-        await update.message.reply_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(buttons) if buttons else None,
-        )
+            await update.message.reply_text(
+                text,
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(buttons) if buttons else None,
+            )
+        except Exception as e:
+            logger.error("Error rendering ticket %s: %s", t.get("ticket_id", "?"), e)
 
 
 async def view_case_from_notification(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

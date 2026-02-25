@@ -17,6 +17,7 @@ from telegram.ext import (
 )
 
 from bot_config import DiaryStates
+from datetime import date as date_type
 from utils.api_client import api_client
 from utils.formatters import (
     format_diary,
@@ -163,7 +164,7 @@ async def diary_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 # ---------------------------------------------------------------------------
 
 async def add_entry_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Receive new diary entry text."""
+    """Receive new diary entry title, then ask for date."""
     text = update.message.text.strip()
 
     # Check if it looks like a date (for "other date" flow)
@@ -175,7 +176,7 @@ async def add_entry_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             diary_resp = await api_client.get_diary_entries(telegram_id, date=date_str)
             entries = diary_resp.get("entries", diary_resp.get("data", []))
             if diary_resp.get("error"):
-                entries = []  # No demo entries for arbitrary dates
+                entries = []
             context.user_data["diary_entries"] = entries
 
             diary_text = format_diary(entries, date_str=parsed.strftime("%d %b %Y"))
@@ -188,27 +189,163 @@ async def add_entry_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         except ValueError:
             pass
 
-    # It's a new entry title
+    # Save entry title and ask for date
+    context.user_data["new_entry_title"] = text
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
+
+    buttons = [
+        [InlineKeyboardButton(f"📅 Today ({today.strftime('%d %b')})", callback_data="edate_today")],
+        [InlineKeyboardButton(f"📅 Tomorrow ({tomorrow.strftime('%d %b')})", callback_data="edate_tomorrow")],
+        [InlineKeyboardButton(f"📅 {day_after.strftime('%d %b %Y')}", callback_data="edate_2days")],
+        [InlineKeyboardButton(f"📅 Custom Date / Apni date likhein", callback_data="edate_custom")],
+    ]
+
+    await update.message.reply_text(
+        f"{E_CALENDAR} <b>Select Date / Date Chunein</b>\n\n"
+        f"{E_MEMO} Entry: <i>{text}</i>\n\n"
+        f"Kis date ke liye schedule karein?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    return DiaryStates.ADD_ENTRY_DATE
+
+
+async def add_entry_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle date selection for new diary entry."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    today = date.today()
+
+    if data == "edate_today":
+        entry_date = today
+    elif data == "edate_tomorrow":
+        entry_date = today + timedelta(days=1)
+    elif data == "edate_2days":
+        entry_date = today + timedelta(days=2)
+    elif data == "edate_custom":
+        await query.edit_message_text(
+            f"{E_CALENDAR} <b>Enter Date / Date Likhein</b>\n\n"
+            f"DD/MM/YYYY format mein likhein:\n"
+            f"<i>Example: 28/02/2026</i>",
+            parse_mode="HTML",
+        )
+        return DiaryStates.ADD_ENTRY_DATE  # Stay in same state for text input
+    else:
+        entry_date = today
+
+    context.user_data["new_entry_date"] = entry_date.isoformat()
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    buttons = [
+        [InlineKeyboardButton("🕘 9:00 AM", callback_data="etime_09:00")],
+        [InlineKeyboardButton("🕛 12:00 PM", callback_data="etime_12:00")],
+        [InlineKeyboardButton("🕒 3:00 PM", callback_data="etime_15:00")],
+        [InlineKeyboardButton("🕕 6:00 PM", callback_data="etime_18:00")],
+        [InlineKeyboardButton("⏭ No Time / Skip", callback_data="etime_skip")],
+    ]
+
+    title = context.user_data.get("new_entry_title", "")
+    await query.edit_message_text(
+        f"{E_CLOCK} <b>Select Time / Samay Chunein</b>\n\n"
+        f"{E_MEMO} Entry: <i>{title}</i>\n"
+        f"{E_CALENDAR} Date: <b>{entry_date.strftime('%d %b %Y')}</b>\n\n"
+        f"Kis time ke liye?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    return DiaryStates.ADD_ENTRY_TIME
+
+
+async def add_entry_date_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle custom date typed by user for new diary entry."""
+    text = update.message.text.strip()
+    try:
+        parsed = datetime.strptime(text, "%d/%m/%Y")
+        entry_date = parsed.date()
+    except ValueError:
+        await update.message.reply_text(
+            f"{E_CROSS} Invalid date format. Please use DD/MM/YYYY\n"
+            f"<i>Example: 28/02/2026</i>",
+            parse_mode="HTML",
+        )
+        return DiaryStates.ADD_ENTRY_DATE
+
+    context.user_data["new_entry_date"] = entry_date.isoformat()
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    buttons = [
+        [InlineKeyboardButton("🕘 9:00 AM", callback_data="etime_09:00")],
+        [InlineKeyboardButton("🕛 12:00 PM", callback_data="etime_12:00")],
+        [InlineKeyboardButton("🕒 3:00 PM", callback_data="etime_15:00")],
+        [InlineKeyboardButton("🕕 6:00 PM", callback_data="etime_18:00")],
+        [InlineKeyboardButton("⏭ No Time / Skip", callback_data="etime_skip")],
+    ]
+
+    title = context.user_data.get("new_entry_title", "")
+    await update.message.reply_text(
+        f"{E_CLOCK} <b>Select Time / Samay Chunein</b>\n\n"
+        f"{E_MEMO} Entry: <i>{title}</i>\n"
+        f"{E_CALENDAR} Date: <b>{entry_date.strftime('%d %b %Y')}</b>\n\n"
+        f"Kis time ke liye?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    return DiaryStates.ADD_ENTRY_TIME
+
+
+async def add_entry_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle time selection and save the diary entry."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    time_str = ""
+    if data == "etime_skip":
+        time_display = "No specific time"
+    else:
+        time_str = data.replace("etime_", "")
+        # Convert 24h to display
+        hour = int(time_str.split(":")[0])
+        ampm = "AM" if hour < 12 else "PM"
+        display_hour = hour if hour <= 12 else hour - 12
+        if display_hour == 0:
+            display_hour = 12
+        time_display = f"{display_hour}:{time_str.split(':')[1]} {ampm}"
+
+    title = context.user_data.get("new_entry_title", "Untitled")
+    entry_date_str = context.user_data.get("new_entry_date", date.today().isoformat())
+    entry_date = date.fromisoformat(entry_date_str)
+
     telegram_id = update.effective_user.id
     payload = {
         "adm_telegram_id": telegram_id,
-        "title": text,
-        "date": date.today().isoformat(),
-        "priority": "today",
+        "title": f"{title}" + (f" ({time_display})" if time_str else ""),
+        "date": entry_date_str,
+        "priority": "today" if entry_date == date.today() else "upcoming",
     }
 
     result = await api_client.add_diary_entry(payload)
-
     if result.get("error"):
         logger.warning("Diary add API failed: %s", result)
 
-    await update.message.reply_text(
+    await query.edit_message_text(
         f"{E_CHECK} <b>Entry Added!</b>\n\n"
-        f"{E_MEMO} {text}\n"
-        f"{E_CALENDAR} {date.today().strftime('%d %b %Y')}\n\n"
+        f"{E_MEMO} {title}\n"
+        f"{E_CALENDAR} {entry_date.strftime('%d %b %Y')}\n"
+        f"{E_CLOCK} {time_display}\n\n"
         f"Entry add ho gayi hai {E_SPARKLE}",
         parse_mode="HTML",
     )
+
+    # Clean up temp data
+    context.user_data.pop("new_entry_title", None)
+    context.user_data.pop("new_entry_date", None)
 
     # Show updated diary
     diary_resp = await api_client.get_diary_entries(telegram_id)
@@ -218,7 +355,7 @@ async def add_entry_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["diary_entries"] = entries
 
     diary_text = format_diary(entries)
-    sent_msg = await update.message.reply_text(
+    sent_msg = await query.message.reply_text(
         diary_text,
         parse_mode="HTML",
         reply_markup=diary_action_keyboard(),
@@ -338,10 +475,18 @@ def build_diary_handler() -> ConversationHandler:
         states={
             DiaryStates.VIEW_DIARY: [
                 CallbackQueryHandler(diary_action, pattern=r"^diary_"),
+                CallbackQueryHandler(cancel_diary, pattern=r"^cancel$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_entry_text),
             ],
             DiaryStates.ADD_ENTRY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_entry_text),
+            ],
+            DiaryStates.ADD_ENTRY_DATE: [
+                CallbackQueryHandler(add_entry_date, pattern=r"^edate_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_entry_date_text),
+            ],
+            DiaryStates.ADD_ENTRY_TIME: [
+                CallbackQueryHandler(add_entry_time, pattern=r"^etime_"),
             ],
             DiaryStates.ENTRY_DETAILS: [
                 CallbackQueryHandler(entry_action, pattern=r"^dentry_"),
